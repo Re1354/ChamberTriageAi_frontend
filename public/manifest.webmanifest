@@ -1,0 +1,10 @@
+{
+  "name": "ChamberTriage AI",
+  "short_name": "ChamberAI",
+  "description": "ডাক্তার দেখানোর আগে AI সহকারীর সাথে কথা বলুন",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "lang": "bn"
+}
