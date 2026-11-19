@@ -14,20 +14,33 @@ if (process.env.VERCEL) {
   }
 }
 
+/**
+ * API প্রক্সি (ডিফল্ট চালু): ব্রাউজার শুধু নিজের ডোমেইনের /backend/* -এ কথা বলে, Vercel সেটা Render-এ পাঠায়।
+ * কেন: অনেক মোবাইল নেটওয়ার্ক/ফোন onrender.com-এ সরাসরি যেতে পারে না (DNS/ISP/IPv6), CORS-ও লাগে না,
+ * আর Vercel-এর যেকোনো URL (preview সহ) থেকে চলে। Vercel রোগীর আসল IP x-forwarded-for-এ পাঠায়।
+ * বন্ধ করতে (সরাসরি API-তে যেতে): Vercel-এ API_DIRECT=1
+ */
+const rawApi = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").trim().replace(/\/$/, "");
+const proxyTarget =
+  process.env.API_DIRECT === "1"
+    ? ""
+    : (process.env.API_PROXY_TARGET?.trim() || (/^https?:\/\//.test(rawApi) ? rawApi : "")).replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: { NEXT_PUBLIC_API_VIA_PROXY: proxyTarget ? "1" : "0" },
   // এই রিপোই প্রজেক্টের রুট (shared/ ভেতরেই আছে, tsconfig paths দিয়ে ইমপোর্ট)
   turbopack: { root: process.cwd() },
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
-  // ঐচ্ছিক: API_PROXY_TARGET দিলে /backend/* রিকোয়েস্ট সেই API-তে ফরওয়ার্ড হয় (same-origin, CORS লাগে না)।
-  // লোকাল ডেভ/ফোনে LAN টেস্টে কাজে লাগে: NEXT_PUBLIC_API_BASE_URL=/backend, API_PROXY_TARGET=http://127.0.0.1:4100
+  // লোকাল ডেভে: API_PROXY_TARGET=http://127.0.0.1:4100 ; প্রোডাকশনে: NEXT_PUBLIC_API_BASE_URL (Render URL)
   async rewrites() {
-    const target = process.env.API_PROXY_TARGET?.replace(/\/$/, "");
-    return target ? [{ source: "/backend/:path*", destination: `${target}/:path*` }] : [];
+    return proxyTarget ? [{ source: "/backend/:path*", destination: `${proxyTarget}/:path*` }] : [];
   },
   async headers() {
     return [
+      // API-র উত্তর কখনো CDN-এ ক্যাশ হবে না
+      { source: "/backend/:path*", headers: [{ key: "x-vercel-enable-rewrite-caching", value: "0" }] },
       {
         source: "/:path*",
         headers: [

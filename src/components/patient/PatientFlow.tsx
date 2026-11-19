@@ -33,6 +33,7 @@ import {
   MessageSquare,
   Mic,
   Phone,
+  RefreshCw,
   Stethoscope,
   User,
   Volume,
@@ -310,6 +311,11 @@ export function PatientFlow({ slug }: { slug: string }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function retryWake() {
+    setApiReady(null);
+    void wakeApi().then(setApiReady);
+  }
+
   function speak(q: Question) {
     if (q.audioUrl) {
       void new Audio(q.audioUrl).play().catch(() => undefined);
@@ -330,6 +336,12 @@ export function PatientFlow({ slug }: { slug: string }) {
     setBusy(true);
     setError(null);
     try {
+      if (apiReady !== true) {
+        // সার্ভার তখনো জাগছে — রোগীকে এরর না দেখিয়ে অপেক্ষা করি
+        const ok = await wakeApi();
+        setApiReady(ok);
+        if (!ok) throw new ApiError(0, "network", "সার্ভারে সংযোগ হচ্ছে না — এক মিনিট পর আবার \"প্রশ্ন শুরু করুন\" চাপুন।");
+      }
       const res = await api<StartVisitResponse>("/api/visits/start", {
         body: { slug, consentVersion: CONSENT_VERSION, ageYears: ageNum, sex },
         timeoutMs: 100_000,
@@ -491,16 +503,30 @@ export function PatientFlow({ slug }: { slug: string }) {
                       <Feature icon={<Stethoscope size={20} />} title="ডাক্তার আগেই দেখবেন" body="জরুরি লক্ষণ থাকলে সাথে সাথে জানানো হয়" />
                     </ul>
                     <div className="space-y-3">
-                      <Button size="xl" block onClick={() => go("consent")} disabled={apiReady === null}>
+                      <Button size="xl" block onClick={() => go("consent")}>
                         AI সহকারী চালু করুন <ArrowRight />
                       </Button>
                       {apiReady === null && (
-                        <p className="flex items-center justify-center gap-2 text-sm text-slate-500" role="status">
-                          <Spinner small /> সিস্টেম চালু হচ্ছে… প্রথমবার ৩০–৬০ সেকেন্ড লাগতে পারে
+                        <p className="flex items-center justify-center gap-2 text-center text-sm text-slate-500" role="status">
+                          <Spinner small /> সিস্টেম প্রস্তুত হচ্ছে — আপনি এগিয়ে যেতে পারেন
+                        </p>
+                      )}
+                      {apiReady === true && (
+                        <p className="flex items-center justify-center gap-2 text-sm text-emerald-700" role="status">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" /> সিস্টেম প্রস্তুত
                         </p>
                       )}
                       {apiReady === false && (
-                        <Notice tone="warn">সার্ভারে সংযোগ হচ্ছে না। একটু পরে পেজটি রিফ্রেশ করুন।</Notice>
+                        <Notice
+                          tone="warn"
+                          action={
+                            <Button size="sm" variant="secondary" onClick={retryWake}>
+                              <RefreshCw size={16} /> আবার চেষ্টা
+                            </Button>
+                          }
+                        >
+                          সার্ভারে সংযোগ হচ্ছে না। ইন্টারনেট ঠিক আছে কিনা দেখে আবার চেষ্টা করুন।
+                        </Notice>
                       )}
                     </div>
                   </>
