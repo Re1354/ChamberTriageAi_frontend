@@ -1,26 +1,27 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { AppShell, type NavItem } from "@/components/AppShell";
 import { AuthProvider, RequireAuth, useAuth } from "@/components/AuthProvider";
+import { ClipboardList, Users } from "@/components/icons";
 
-function Header() {
+function Shell({ children }: { children: ReactNode }) {
   const { me, signOut } = useAuth();
+  const nav: NavItem[] = [
+    { href: "/admin", label: "ডাক্তার ব্যবস্থাপনা", short: "ডাক্তার", icon: <Users size={22} /> },
+    ...(me?.doctor
+      ? [{ href: "/dashboard", label: "আমার রোগী", short: "রোগী", icon: <ClipboardList size={22} /> } satisfies NavItem]
+      : []),
+  ];
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
-        <span className="font-bold text-teal-900">ChamberTriage · অ্যাডমিন</span>
-        {me?.doctor && (
-          <Link href="/dashboard" className="text-sm text-teal-700 underline">
-            আমার ডাক্তার-ড্যাশবোর্ড
-          </Link>
-        )}
-        <span className="ml-auto text-sm text-slate-600">{me?.email}</span>
-        <button onClick={() => void signOut()} className="text-sm text-red-700">
-          লগআউট
-        </button>
-      </div>
-    </header>
+    <AppShell
+      nav={nav}
+      homeHref="/admin"
+      user={{ name: me?.doctor?.fullName ?? me?.email ?? "অ্যাডমিন", subtitle: me?.email ?? "অ্যাডমিন" }}
+      onSignOut={() => void signOut()}
+    >
+      {children}
+    </AppShell>
   );
 }
 
@@ -28,8 +29,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <RequireAuth role="admin">
-        <Header />
-        <div className="mx-auto max-w-6xl p-4">{children}</div>
+        <Shell>{children}</Shell>
       </RequireAuth>
     </AuthProvider>
   );

@@ -1,20 +1,118 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   ChamberTriage AI — ডিজাইন সিস্টেম
+   ব্র্যান্ড: শান্ত, আস্থাশীল মেডিকেল টিল; নিউট্রাল: slate; অবস্থা: red/amber/emerald/sky
+   --------------------------------------------------------------------------- */
 @theme {
-  --font-sans: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-hind), "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", monospace;
+
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+  --color-brand-950: #042f2e;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+  --shadow-raised: 0 4px 6px -1px rgb(15 23 42 / 0.06), 0 10px 24px -6px rgb(15 23 42 / 0.12);
+
+  --animate-fade-in: fade-in 180ms ease-out both;
+  --animate-slide-up: slide-up 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
-html {
-  -webkit-tap-highlight-color: transparent;
+/* নচ/হোম-বার এড়িয়ে অ্যাপের মতো লেআউট */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-body {
-  font-family: var(--font-sans);
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-slate-50);
+    color: var(--color-slate-900);
+    font-feature-settings: "kern";
+    text-rendering: optimizeLegibility;
+  }
+  /* কিবোর্ড ব্যবহারকারীর জন্য স্পষ্ট ফোকাস */
+  :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-brand-400);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+  }
+  /* iOS-এ ১৬px-এর কম ফন্টে ইনপুট জুম হয় — এড়ানো */
+  input,
+  textarea,
+  select {
+    font-size: max(1rem, 16px);
+  }
 }
 
-/* বড় ও স্পষ্ট টাচ-টার্গেট (বয়স্ক রোগীদের জন্য) */
-.tap {
-  min-height: 3rem;
+/* রেকর্ডিং চলাকালীন মাইক বোতামে ঢেউ */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(220 38 38 / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgb(220 38 38 / 0);
+  }
+}
+.recording {
+  animation: pulse-ring 1.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {
@@ -22,18 +120,13 @@ body {
     display: none !important;
   }
   body {
-    background: white;
+    background: white !important;
   }
-}
-
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  .print-plain {
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
   }
-  100% {
-    box-shadow: 0 0 0 14px rgba(220, 38, 38, 0);
+  @page {
+    margin: 12mm;
   }
-}
-.recording {
-  animation: pulse-ring 1.2s ease-out infinite;
 }

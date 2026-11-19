@@ -3,13 +3,24 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CATEGORY_LABELS, STATUS_LABELS_BN, UPLOAD_KIND_LABELS_BN, type VisitDetail } from "@chamberai/shared";
+import { AI_MODE_LABELS_BN, CATEGORY_LABELS, STATUS_LABELS_BN, UPLOAD_KIND_LABELS_BN, type VisitDetail } from "@chamberai/shared";
 import { SummaryCardView } from "@/components/doctor/SummaryCardView";
 import { useDoctorEvents } from "@/components/doctor/hooks";
 import { useAuth } from "@/components/AuthProvider";
-import { Badge, Button, Card, FullPageSpinner, Notice } from "@/components/ui";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  ImageIcon,
+  Info,
+  MessageSquare,
+  Printer,
+  User,
+} from "@/components/icons";
+import { Badge, Button, Card, CardHeader, FullPageSpinner, IconButton, Notice, Spinner } from "@/components/ui";
 import { ApiError, authedApi } from "@/lib/api";
-import { ageBn, codeBoth, drName, sexBn, timeBn } from "@/lib/format";
+import { ageBn, codeBoth, cx, drName, sexBn, timeBn } from "@/lib/format";
 
 export default function VisitPage() {
   const params = useParams<{ id: string }>();
@@ -52,111 +63,169 @@ export default function VisitPage() {
 
   if (error) {
     return (
-      <div className="space-y-3">
-        <Notice tone="error">{error}</Notice>
-        <Link href="/dashboard" className="text-teal-700 underline">
-          ← তালিকায় ফিরুন
+      <div className="mx-auto max-w-xl space-y-4">
+        <Notice tone="error" title="রোগীর তথ্য খোলা যায়নি">
+          {error}
+        </Notice>
+        <Link href="/dashboard" className="inline-flex items-center gap-2 font-semibold text-brand-700">
+          <ArrowLeft size={18} /> তালিকায় ফিরুন
         </Link>
       </div>
     );
   }
-  if (!detail) return <FullPageSpinner />;
+  if (!detail) return <FullPageSpinner label="রোগীর তথ্য লোড হচ্ছে…" />;
 
   const v = detail.visit;
   const code = codeBoth(v.patientCode);
+  const flagged = v.redFlagLevel !== "none";
+  const seen = v.status === "seen";
 
   return (
-    <div className="space-y-4">
-      <div className="no-print flex flex-wrap items-center gap-2">
-        <Link href="/dashboard" className="text-teal-700 underline">
-          ← তালিকা
+    <div className="space-y-5">
+      {/* ---------- উপরের সারি ---------- */}
+      <div className="no-print flex items-center gap-2">
+        <Link
+          href="/dashboard"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl pr-3 font-semibold text-slate-600 hover:text-slate-900"
+          aria-label="রোগী-তালিকায় ফিরুন"
+        >
+          <ArrowLeft size={20} /> তালিকা
         </Link>
         <span className="flex-1" />
-        <Button variant="secondary" onClick={() => window.print()}>
-          🖨 প্রিন্ট
-        </Button>
-        {v.status !== "seen" && (
-          <Button onClick={markSeen} loading={marking}>
-            দেখা হয়েছে ✓
+        <IconButton label="প্রিন্ট" tone="secondary" onClick={() => window.print()}>
+          <Printer size={18} />
+        </IconButton>
+        {!seen ? (
+          <Button onClick={markSeen} loading={marking} className="hidden sm:inline-flex">
+            <CheckCircle size={18} /> দেখা হয়েছে
           </Button>
+        ) : (
+          <Badge tone="green" icon={<CheckCircle size={14} />}>
+            দেখা হয়েছে
+          </Badge>
         )}
       </div>
 
       {!detail.isOwn && (
-        <Notice tone="info">
-          এটি <b>{drName(detail.doctor.fullName)}</b>-এর রোগী{detail.doctor.chamberName ? ` (${detail.doctor.chamberName})` : ""} — কোড-সার্চের মাধ্যমে
-          দেখছেন। এই দেখা অডিট-লগে রেকর্ড হয়েছে।
+        <Notice tone="info" icon={<Info size={20} />} title={`${drName(detail.doctor.fullName)}-এর রোগী`}>
+          {detail.doctor.chamberName ? `${detail.doctor.chamberName} · ` : ""}কোড-সার্চের মাধ্যমে দেখছেন — এই দেখা অডিট-লগে রেকর্ড হয়েছে।
         </Notice>
       )}
 
-      <Card className="space-y-1">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-3xl font-bold tracking-widest">{code.en}</span>
-          <span className="text-lg text-slate-500">({code.bn})</span>
-          {v.redFlagLevel !== "none" && <Badge tone="red">🔴 {v.redFlagLevel === "emergency" ? "অতি জরুরি" : "জরুরি"}</Badge>}
-          <Badge tone="slate">{STATUS_LABELS_BN[v.status]}</Badge>
-        </div>
-        <p className="text-slate-700">
-          {sexBn(v.sex)} · {ageBn(v.ageYears)} · {timeBn(v.createdAt)}
-          {v.category ? ` · ${CATEGORY_LABELS[v.category].bn}` : ""}
-        </p>
-      </Card>
-
-      <Card>
-        {detail.summary ? (
-          <SummaryCardView card={detail.summary} comorbidityIds={detail.comorbidities} />
-        ) : v.status === "abandoned" ? (
-          <Notice tone="warn">রোগী ইন্টারভিউ শেষ করেননি — নিচে যতটুকু উত্তর দিয়েছেন তা দেখুন।</Notice>
-        ) : (
-          <Notice tone="info">
-            {v.status === "finishing" ? "সামারি তৈরি হচ্ছে… (কয়েক সেকেন্ড)" : "রোগী এখনো প্রশ্নের উত্তর দিচ্ছেন… নিচে এ পর্যন্ত উত্তর দেখুন।"}
-          </Notice>
+      {/* ---------- রোগীর পরিচয় ---------- */}
+      <Card className={cx("relative overflow-hidden", flagged && (v.redFlagLevel === "emergency" ? "border-red-300" : "border-amber-300"))}>
+        {flagged && (
+          <span aria-hidden className={cx("absolute inset-y-0 left-0 w-1.5", v.redFlagLevel === "emergency" ? "bg-red-500" : "bg-amber-400")} />
         )}
-      </Card>
-
-      {detail.uploads.length > 0 && (
-        <Card className="space-y-2">
-          <h3 className="font-bold">ছবি</h3>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {detail.uploads.map((u) => (
-              <figure key={u.id} id={`upl-${u.id}`} className="overflow-hidden rounded-xl border border-slate-200">
-                {u.url ? (
-                  <a href={u.url} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={u.url} alt={UPLOAD_KIND_LABELS_BN[u.kind]} className="h-40 w-full object-cover" />
-                  </a>
-                ) : (
-                  <div className="flex h-40 items-center justify-center bg-slate-100 text-sm text-slate-500">
-                    {u.deleted ? "মেয়াদ শেষে মুছে ফেলা হয়েছে" : "লোড হয়নি"}
-                  </div>
-                )}
-                <figcaption className="p-1 text-xs text-slate-600">{UPLOAD_KIND_LABELS_BN[u.kind]}</figcaption>
-              </figure>
-            ))}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">রোগী-কোড</p>
+            <p className="font-mono text-3xl font-bold tracking-[0.15em] text-slate-900 sm:text-4xl">{code.en}</p>
+            <p className="text-sm text-slate-500">{code.bn}</p>
           </div>
-        </Card>
-      )}
-
-      <Card className="space-y-2">
-        <h3 className="font-bold">প্রশ্নোত্তর (রোগীর নিজের কথায়)</h3>
-        <ol className="space-y-2">
-          {detail.messages.map((m) => (
-            <li
-              key={m.id}
-              id={`msg-${m.id}`}
-              className={m.role === "assistant" ? "text-slate-500" : "rounded-lg bg-teal-50 px-3 py-2 text-slate-900 target:ring-2 target:ring-teal-500"}
-            >
-              <span className="mr-2 text-xs font-semibold uppercase">{m.role === "assistant" ? "প্রশ্ন" : "রোগী"}</span>
-              {m.textBn}
-              {m.sttSource && m.role === "patient" && (
-                <span className="ml-2 text-xs text-slate-400">
-                  ({m.sttSource === "typed" ? "লিখে" : m.sttSource === "web_speech" ? "ভয়েস→লেখা" : "অডিও"})
-                </span>
-              )}
-            </li>
-          ))}
-        </ol>
+          <div className="flex flex-wrap gap-1.5">
+            {flagged && (
+              <Badge tone="red" icon={<AlertTriangle size={13} />}>
+                {v.redFlagLevel === "emergency" ? "অতি জরুরি" : "জরুরি"}
+              </Badge>
+            )}
+            <Badge tone={v.status === "completed" ? "green" : seen ? "slate" : "sky"} dot>
+              {STATUS_LABELS_BN[v.status]}
+            </Badge>
+            <Badge tone="slate">{AI_MODE_LABELS_BN[v.aiMode]}</Badge>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-[15px] text-slate-700">
+          <span className="inline-flex items-center gap-1.5">
+            <User size={16} className="text-slate-400" /> {sexBn(v.sex)}, {ageBn(v.ageYears)}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Clock size={16} className="text-slate-400" /> {timeBn(v.createdAt)}
+          </span>
+          {v.category && <span className="inline-flex items-center gap-1.5">{CATEGORY_LABELS[v.category].bn}</span>}
+        </div>
       </Card>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[1.6fr_1fr]">
+        {/* ---------- সামারি ---------- */}
+        <Card as="section">
+          <CardHeader title="ক্লিনিক্যাল সামারি" subtitle="রোগীর উত্তর থেকে গোছানো — যাচাই করে ব্যবহার করুন" />
+          {detail.summary ? (
+            <SummaryCardView card={detail.summary} comorbidityIds={detail.comorbidities} />
+          ) : v.status === "abandoned" ? (
+            <Notice tone="warn">রোগী ইন্টারভিউ শেষ করেননি — পাশে যতটুকু উত্তর দিয়েছেন তা দেখুন।</Notice>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl bg-sky-50 px-4 py-4 text-sky-900">
+              <Spinner small className="text-sky-700" />
+              <p>{v.status === "finishing" ? "সামারি তৈরি হচ্ছে… কয়েক সেকেন্ড" : "রোগী এখনো প্রশ্নের উত্তর দিচ্ছেন — শেষ হলে সামারি নিজে থেকেই আসবে।"}</p>
+            </div>
+          )}
+        </Card>
+
+        <div className="space-y-5">
+          {/* ---------- ছবি ---------- */}
+          {detail.uploads.length > 0 && (
+            <Card as="section">
+              <CardHeader title="ছবি" icon={<ImageIcon size={18} />} subtitle="ট্যাপ করলে বড় করে খুলবে" />
+              <div className="grid grid-cols-2 gap-2.5">
+                {detail.uploads.map((u) => (
+                  <figure key={u.id} id={`upl-${u.id}`} className="scroll-mt-24 overflow-hidden rounded-xl border border-slate-200 target:ring-4 target:ring-brand-200">
+                    {u.url ? (
+                      <a href={u.url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={u.url} alt={UPLOAD_KIND_LABELS_BN[u.kind]} loading="lazy" className="aspect-[4/3] w-full bg-slate-100 object-cover" />
+                      </a>
+                    ) : (
+                      <div className="flex aspect-[4/3] items-center justify-center bg-slate-100 p-2 text-center text-xs text-slate-500">
+                        {u.deleted ? "মেয়াদ শেষে মুছে ফেলা হয়েছে" : "লোড হয়নি"}
+                      </div>
+                    )}
+                    <figcaption className="px-2 py-1.5 text-xs font-medium text-slate-600">{UPLOAD_KIND_LABELS_BN[u.kind]}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* ---------- প্রশ্নোত্তর ---------- */}
+          <Card as="section">
+            <CardHeader title="প্রশ্নোত্তর" icon={<MessageSquare size={18} />} subtitle="রোগীর নিজের কথায়" />
+            <ol className="space-y-3">
+              {detail.messages.map((m) =>
+                m.role === "assistant" ? (
+                  <li key={m.id} id={`msg-${m.id}`} className="text-sm leading-relaxed text-slate-500">
+                    {m.textBn}
+                  </li>
+                ) : (
+                  <li
+                    key={m.id}
+                    id={`msg-${m.id}`}
+                    className="scroll-mt-24 rounded-2xl rounded-tl-md bg-brand-50 px-3.5 py-2.5 leading-relaxed text-slate-900 ring-brand-300 target:ring-2"
+                  >
+                    {m.textBn}
+                    {m.sttSource && (
+                      <span className="ml-2 whitespace-nowrap text-xs text-slate-400">
+                        · {m.sttSource === "typed" ? "লিখে" : m.sttSource === "web_speech" ? "ভয়েস→লেখা" : "অডিও"}
+                      </span>
+                    )}
+                  </li>
+                ),
+              )}
+              {detail.messages.length === 0 && <p className="text-sm text-slate-400">এখনো কোনো উত্তর নেই।</p>}
+            </ol>
+          </Card>
+        </div>
+      </div>
+
+      {/* ---------- মোবাইলে নিচের অ্যাকশন-বার ---------- */}
+      {!seen && (
+        <div className="no-print fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-md sm:hidden">
+          <Button block size="lg" onClick={markSeen} loading={marking}>
+            <CheckCircle size={20} /> দেখা হয়েছে — তালিকায় চিহ্নিত করুন
+          </Button>
+        </div>
+      )}
+      {!seen && <div className="h-16 sm:hidden" aria-hidden />}
     </div>
   );
 }

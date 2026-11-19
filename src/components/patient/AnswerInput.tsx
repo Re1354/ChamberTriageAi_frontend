@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MAX_AUDIO_SECONDS, type SttSource } from "@chamberai/shared";
+import { Keyboard, Mic, Send, StopSquare } from "@/components/icons";
 import { Button } from "@/components/ui";
-import { cx } from "@/lib/format";
+import { cx, numBn } from "@/lib/format";
 
 export interface AnswerSubmit {
   text?: string;
@@ -41,8 +42,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 /**
  * উত্তর দেওয়ার তিন উপায়:
- *  A. ব্রাউজারের বাংলা স্পিচ-রিকগনিশন (ফ্রি) → লেখা বক্সে আসে, রোগী দেখে ঠিক করতে পারেন (= "ঠিক আছে?" নিশ্চিতকরণ)
- *  B. A না থাকলে অডিও রেকর্ড → সার্ভারে AI বুঝে নেয় (বাড়তি AI কল নয়)
+ *  A. ব্রাউজারের বাংলা স্পিচ-রিকগনিশন (ফ্রি) → লেখা বক্সে আসে, রোগী দেখে ঠিক করতে পারেন
+ *  B. A না থাকলে অডিও রেকর্ড → সার্ভারে AI বুঝে নেয়
  *  C. টাইপ করা — সবসময়
  */
 export function AnswerInput({
@@ -60,15 +61,19 @@ export function AnswerInput({
   const [speechFailed, setSpeechFailed] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState<{ blob: Blob; seconds: number } | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
   const baseTextRef = useRef("");
 
-  const SR = getSpeechRecognition();
+  // ব্রাউজার-ক্ষমতা শুধু ক্লায়েন্টে জানা যায় — হাইড্রেশন-মিসম্যাচ এড়াতে মাউন্টের পর দেখাই
+  useEffect(() => setMounted(true), []);
+  const SR = mounted ? getSpeechRecognition() : null;
   const canSpeech = !!SR && !speechFailed;
-  const canRecord = audioAllowed && typeof window !== "undefined" && "MediaRecorder" in window;
+  const canRecord = mounted && audioAllowed && "MediaRecorder" in window;
 
   useEffect(() => {
     return () => {
@@ -79,6 +84,7 @@ export function AnswerInput({
 
   function startSpeech() {
     if (!SR) return;
+    setMicError(null);
     const rec = new SR();
     rec.lang = "bn-BD";
     rec.interimResults = true;
@@ -93,6 +99,7 @@ export function AnswerInput({
     rec.onerror = (e: any) => {
       if (e?.error === "not-allowed" || e?.error === "service-not-allowed" || e?.error === "language-not-supported") {
         setSpeechFailed(true);
+        setMicError("মাইক্রোফোন ব্যবহারের অনুমতি পাওয়া যায়নি — অনুগ্রহ করে লিখে উত্তর দিন।");
       }
       setListening(false);
     };
@@ -112,6 +119,7 @@ export function AnswerInput({
   }
 
   async function startRecording() {
+    setMicError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"].find((m) =>
@@ -132,7 +140,7 @@ export function AnswerInput({
       setRecording(true);
       setTimeout(() => mr.state === "recording" && mr.stop(), MAX_AUDIO_SECONDS * 1000);
     } catch {
-      alert("মাইক্রোফোন চালু করা যায়নি। অনুগ্রহ করে লিখে উত্তর দিন।");
+      setMicError("মাইক্রোফোন চালু করা যায়নি। অনুগ্রহ করে লিখে উত্তর দিন।");
     }
   }
 
@@ -146,58 +154,67 @@ export function AnswerInput({
     }
   }
 
+  const active = listening || recording;
+  const voiceMode = canSpeech ? "speech" : canRecord ? "record" : null;
+  const voiceLabel = listening
+    ? "শুনছি… শেষ হলে চাপুন"
+    : recording
+      ? "রেকর্ড হচ্ছে… শেষ হলে চাপুন"
+      : recorded
+        ? `${numBn(recorded.seconds)} সেকেন্ডের রেকর্ড প্রস্তুত — আবার বলতে চাপুন`
+        : "চাপুন ও বাংলায় বলুন";
+
   // নোট: প্রতিটি নতুন প্রশ্নে প্যারেন্ট `key={question.id}` দিয়ে কম্পোনেন্ট নতুন করে বানায় → বক্স খালি হয়
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {canSpeech ? (
+    <div className="space-y-4">
+      {voiceMode && (
+        <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={listening ? stopSpeech : startSpeech}
+            onClick={
+              voiceMode === "speech"
+                ? listening
+                  ? stopSpeech
+                  : startSpeech
+                : recording
+                  ? () => mediaRef.current?.stop()
+                  : startRecording
+            }
             disabled={busy}
+            aria-pressed={active}
+            aria-label={voiceLabel}
             className={cx(
-              "tap flex items-center gap-2 rounded-full px-5 py-3 text-lg font-semibold text-white",
-              listening ? "recording bg-red-600" : "bg-teal-700 hover:bg-teal-800",
+              "flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white shadow-[var(--shadow-raised)] transition-colors disabled:opacity-50",
+              active ? "recording bg-red-600" : "bg-brand-700 hover:bg-brand-800 active:bg-brand-900",
             )}
           >
-            🎤 {listening ? "শুনছি… থামাতে চাপুন" : "চাপুন ও বলুন"}
+            {active ? <StopSquare size={26} /> : <Mic size={28} />}
           </button>
-        ) : canRecord ? (
-          <button
-            type="button"
-            onClick={recording ? () => mediaRef.current?.stop() : startRecording}
-            disabled={busy}
-            className={cx(
-              "tap flex items-center gap-2 rounded-full px-5 py-3 text-lg font-semibold text-white",
-              recording ? "recording bg-red-600" : "bg-teal-700 hover:bg-teal-800",
-            )}
-          >
-            🎙️ {recording ? "রেকর্ড হচ্ছে… থামাতে চাপুন" : recorded ? "আবার রেকর্ড করুন" : "রেকর্ড করে বলুন"}
-          </button>
-        ) : (
-          <p className="text-sm text-slate-500">এই ফোনে ভয়েস চালু নেই — অনুগ্রহ করে লিখে উত্তর দিন।</p>
-        )}
-        {recorded && !recording && (
-          <span className="text-sm text-slate-600">✅ {recorded.seconds} সেকেন্ডের রেকর্ড প্রস্তুত</span>
-        )}
-      </div>
+          <p className={cx("text-[15px] font-semibold leading-snug", active ? "text-red-700" : "text-slate-800")} aria-live="polite">
+            {voiceLabel}
+          </p>
+        </div>
+      )}
+      {micError && <p className="text-sm text-amber-700">{micError}</p>}
 
-      <label className="block">
-        <span className="mb-1 block text-sm text-slate-600">
-          {usedVoice ? "আপনি যা বলেছেন — ঠিক না হলে এখানে বদলে দিন:" : "অথবা এখানে লিখুন:"}
-        </span>
+      <div>
+        <label htmlFor="answer" className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-600">
+          <Keyboard size={16} />
+          {usedVoice ? "আপনি যা বলেছেন — ঠিক না হলে এখানে বদলে দিন" : voiceMode ? "অথবা এখানে লিখুন" : "এখানে লিখে উত্তর দিন"}
+        </label>
         <textarea
+          id="answer"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={3}
           maxLength={2000}
-          placeholder="যেমন: ৪ দিন ধরে বুকে চাপ লাগছে…"
-          className="w-full rounded-xl border border-slate-300 p-3 text-lg focus:border-teal-600 focus:outline-none focus:ring-4 focus:ring-teal-100"
+          placeholder="যেমন: ৪ দিন ধরে বুকে চাপ লাগছে, হাঁটলে বাড়ে…"
+          className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-lg leading-relaxed placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100"
         />
-      </label>
+      </div>
 
-      <Button size="lg" className="w-full" onClick={submit} loading={busy} disabled={!text.trim() && !recorded}>
-        পাঠান ➜
+      <Button size="xl" block onClick={submit} loading={busy} disabled={!text.trim() && !recorded}>
+        পাঠান <Send size={20} />
       </Button>
     </div>
   );

@@ -78,3 +78,39 @@ export const PATIENT_MESSAGES_BN = {
 
 export const MAX_UPLOADS_PER_VISIT = 8;
 export const MAX_AUDIO_SECONDS = 60;
+
+/**
+ * বাংলাদেশের মেডিকেল কলেজ/বিশ্ববিদ্যালয় (সরকারি, প্রতিষ্ঠার ক্রমে প্রধানগুলো) — ডাক্তারের ডিগ্রি লেখার সাজেশনে ব্যবহার।
+ * সূত্র: DGME/উইকিপিডিয়ার সরকারি মেডিকেল কলেজ-তালিকা। BSMMU-র নতুন নাম: বাংলাদেশ মেডিকেল বিশ্ববিদ্যালয় (BMU)।
+ */
+export const BD_MEDICAL_COLLEGES: { bn: string; en: string; short: string }[] = [
+  { bn: "ঢাকা মেডিকেল কলেজ", en: "Dhaka Medical College", short: "DMC" },
+  { bn: "স্যার সলিমুল্লাহ মেডিকেল কলেজ", en: "Sir Salimullah Medical College", short: "SSMC" },
+  { bn: "শহীদ সোহরাওয়ার্দী মেডিকেল কলেজ", en: "Shaheed Suhrawardy Medical College", short: "ShSMC" },
+  { bn: "চট্টগ্রাম মেডিকেল কলেজ", en: "Chittagong Medical College", short: "CMC" },
+  { bn: "রাজশাহী মেডিকেল কলেজ", en: "Rajshahi Medical College", short: "RMC" },
+  { bn: "ময়মনসিংহ মেডিকেল কলেজ", en: "Mymensingh Medical College", short: "MMC" },
+  { bn: "সিলেট এম এ জি ওসমানী মেডিকেল কলেজ", en: "Sylhet MAG Osmani Medical College", short: "SOMC" },
+  { bn: "শেরে-বাংলা মেডিকেল কলেজ, বরিশাল", en: "Sher-e-Bangla Medical College", short: "SBMC" },
+  { bn: "রংপুর মেডিকেল কলেজ", en: "Rangpur Medical College", short: "RpMC" },
+  { bn: "কুমিল্লা মেডিকেল কলেজ", en: "Cumilla Medical College", short: "CuMC" },
+  { bn: "খুলনা মেডিকেল কলেজ", en: "Khulna Medical College", short: "KMC" },
+  { bn: "শহীদ জিয়াউর রহমান মেডিকেল কলেজ, বগুড়া", en: "Shaheed Ziaur Rahman Medical College", short: "SZMC" },
+  { bn: "ফরিদপুর মেডিকেল কলেজ", en: "Faridpur Medical College", short: "FMC" },
+  { bn: "দিনাজপুর মেডিকেল কলেজ", en: "Dinajpur Medical College", short: "DjMC" },
+  { bn: "মুগদা মেডিকেল কলেজ", en: "Mugda Medical College", short: "MuMC" },
+  { bn: "বাংলাদেশ মেডিকেল বিশ্ববিদ্যালয়", en: "Bangladesh Medical University", short: "BMU" },
+];
+
+/** ডিগ্রির সাজেশন (ডাক্তার নিজে বদলে লিখতে পারেন) */
+export const DEGREE_SUGGESTIONS: string[] = [
+  ...BD_MEDICAL_COLLEGES.filter((c) => c.short !== "BMU").map((c) => `MBBS (${c.short})`),
+  "FCPS (মেডিসিন)",
+  "FCPS (সার্জারি)",
+  "FCPS (শিশু)",
+  "FCPS (গাইনি ও অবস)",
+  "MD (কার্ডিওলজি), BMU",
+  "MD (মেডিসিন), BMU",
+  "MS (অর্থোপেডিক্স), BMU",
+  "MRCP (UK)",
+];

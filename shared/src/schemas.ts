@@ -100,6 +100,7 @@ export const CreateDoctorBodySchema = z.object({
   password: z.string().min(8).max(72),
   fullName: z.string().min(2).max(120),
   specialty: z.string().max(120).optional().default(""),
+  qualifications: z.string().max(240).optional().default(""),
   chamberName: z.string().max(160).optional().default(""),
   chamberAddress: z.string().max(240).optional().default(""),
   slug: SlugSchema,
@@ -114,9 +115,19 @@ export const UpdateDoctorBodySchema = z.object({
   dailyAiLimit: z.number().int().min(0).max(100000).optional(),
   fullName: z.string().min(2).max(120).optional(),
   specialty: z.string().max(120).optional(),
+  qualifications: z.string().max(240).optional(),
   chamberName: z.string().max(160).optional(),
   chamberAddress: z.string().max(240).optional(),
 });
+
+/** ডাক্তার নিজের প্রোফাইল (নাম/লিংক বাদে) বদলাতে পারেন */
+export const UpdateOwnProfileBodySchema = z.object({
+  specialty: z.string().max(120),
+  qualifications: z.string().max(240),
+  chamberName: z.string().max(160),
+  chamberAddress: z.string().max(240),
+});
+export type UpdateOwnProfileBody = z.infer<typeof UpdateOwnProfileBodySchema>;
 
 // ---------------------------------------------------------------------------
 // LLM output schemas (lenient: defaults so that small omissions do not fail)

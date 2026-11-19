@@ -1,10 +1,24 @@
 {
+  "id": "/",
   "name": "ChamberTriage AI",
   "short_name": "ChamberAI",
-  "description": "ডাক্তার দেখানোর আগে AI সহকারীর সাথে কথা বলুন",
-  "start_url": "/",
+  "description": "ডাক্তার দেখানোর আগে বাংলায় AI সহকারীকে সমস্যা জানান — চেম্বারের প্রি-কনসালটেশন সহকারী",
+  "lang": "bn",
+  "dir": "ltr",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#0f766e",
-  "lang": "bn"
+  "categories": ["medical", "health", "productivity"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "রোগী-তালিকা", "url": "/dashboard", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "QR পোস্টার", "url": "/dashboard/qr", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
 }

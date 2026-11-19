@@ -16,6 +16,7 @@ import type {
 export interface DoctorPublic {
   fullName: string;
   specialty: string | null;
+  qualifications: string | null;
   chamberName: string | null;
   chamberAddress: string | null;
   isOpen: boolean;
@@ -58,6 +59,7 @@ export interface DoctorProfile {
   email: string;
   fullName: string;
   specialty: string | null;
+  qualifications: string | null;
   chamberName: string | null;
   chamberAddress: string | null;
   slug: string;
